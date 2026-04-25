@@ -16,12 +16,6 @@ export function Navbar() {
         </Link>
 
         <div className="hidden items-center gap-2 md:flex">
-          <Link
-            href="/admin"
-            className="rounded-full border border-white/15 bg-white/[0.02] px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/5"
-          >
-            Admin
-          </Link>
           <a
             href="#projects"
             className="rounded-full border border-white/15 bg-white/[0.02] px-4 py-2 text-sm font-semibold text-white/90 transition hover:bg-white/5"
