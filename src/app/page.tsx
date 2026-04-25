@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Code2, Database, Rocket, Wrench } from "lucide-react";
+import { ArrowRight, Wrench } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
 import { Reveal } from "@/components/reveal";
@@ -82,86 +82,63 @@ export default async function Home() {
         </section>
 
         <section id="projects" className="mt-20">
-          <Reveal>
-            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Projects
-            </h2>
-          </Reveal>
-          <Reveal delay={0.05}>
-            <p className="mt-3 max-w-2xl text-white/65">
-              {content.projectsIntro}
-            </p>
-          </Reveal>
-
-          {featuredProjects.length ? (
-            <div className="mt-8 grid gap-6 md:grid-cols-3">
-              {featuredProjects.map((project, idx) => (
-                <Reveal key={project.slug} delay={idx * 0.04}>
-                  <article className="hover-lift overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
-                    <div className="relative aspect-[16/10] w-full bg-black/30">
-                      <Image
-                        src={project.coverUrl}
-                        alt={project.title}
-                        fill
-                        className="object-cover"
-                        sizes="(max-width: 1024px) 50vw, 33vw"
-                      />
-                    </div>
-                    <div className="p-5">
-                      <h3 className="text-lg font-semibold text-white">
-                        {project.title}
-                      </h3>
-                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/70">
-                        {project.description}
-                      </p>
-                      <p className="mt-3 text-xs text-white/45">{project.slug}</p>
-                    </div>
-                  </article>
-                </Reveal>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="mt-10 grid gap-6 md:grid-cols-3">
+          <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/[0.04] to-white/[0.01] p-6 sm:p-10">
             <Reveal>
-              <div className="hover-lift rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                <Code2 className="h-5 w-5 text-cyan-300" />
-                <h3 className="mt-4 text-lg font-semibold">Design to App</h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">
-                  Convert your Figma or UI/UX screens into polished mobile apps.
-                </p>
-              </div>
-            </Reveal>
-            <Reveal delay={0.05}>
-              <div className="hover-lift rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                <Database className="h-5 w-5 text-fuchsia-300" />
-                <h3 className="mt-4 text-lg font-semibold">Backend & Database</h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">
-                  Firebase, Supabase, MongoDB, SQL, and API integration.
-                </p>
-              </div>
-            </Reveal>
-            <Reveal delay={0.1}>
-              <div className="hover-lift rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-                <Rocket className="h-5 w-5 text-indigo-300" />
-                <h3 className="mt-4 text-lg font-semibold">Launch Support</h3>
-                <p className="mt-2 text-sm leading-6 text-white/65">
-                  Testing, optimization, store submission, and post-launch
-                  updates.
-                </p>
-              </div>
-            </Reveal>
-          </div>
-
-          <Reveal delay={0.15}>
-            <div className="hover-lift mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-              <p className="text-sm text-white/70">
-                Upload your real project screenshots and videos in{" "}
-                <span className="font-mono text-white">public/mockups/</span> then
-                open <span className="font-mono text-white">/mockups</span>.
+              <p className="text-xs uppercase tracking-[0.25em] text-white/45">
+                Selected Work
               </p>
+            </Reveal>
+            <Reveal delay={0.04}>
+              <h2 className="mt-3 text-4xl font-semibold leading-[0.9] tracking-tight sm:text-6xl">
+                RECENT <span className="text-white/35">PROJECTS</span>
+              </h2>
+            </Reveal>
+            <Reveal delay={0.08}>
+              <p className="mt-4 max-w-2xl text-sm text-white/60 sm:text-base">
+                {content.projectsIntro}
+              </p>
+            </Reveal>
+
+            <div className="mt-8 space-y-3">
+              {featuredProjects.length ? (
+                featuredProjects.map((project, idx) => (
+                  <Reveal key={project.slug} delay={0.03 * idx}>
+                    <article className="group hover-lift rounded-2xl border border-white/10 bg-black/20 p-3 sm:p-4">
+                      <div className="grid items-center gap-4 sm:grid-cols-[110px_1fr_auto]">
+                        <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-black/40">
+                          <Image
+                            src={project.coverUrl}
+                            alt={project.title}
+                            fill
+                            className="object-cover transition duration-300 group-hover:scale-105"
+                            sizes="120px"
+                          />
+                        </div>
+                        <div>
+                          <h3 className="text-lg font-semibold text-white sm:text-xl">
+                            {project.title}
+                          </h3>
+                          <p className="mt-1 line-clamp-2 text-sm text-white/60">
+                            {project.description}
+                          </p>
+                        </div>
+                        <div className="hidden h-10 w-10 items-center justify-center rounded-full border border-white/15 text-white/70 transition group-hover:border-white/40 group-hover:text-white sm:flex">
+                          <ArrowRight className="h-4 w-4" />
+                        </div>
+                      </div>
+                    </article>
+                  </Reveal>
+                ))
+              ) : (
+                <Reveal>
+                  <div className="rounded-2xl border border-dashed border-white/20 bg-black/20 p-6 text-sm text-white/60">
+                    No projects yet. Add a project from admin upload to display it
+                    here with title, description, and image.
+                  </div>
+                </Reveal>
+              )}
             </div>
-          </Reveal>
+          </div>
         </section>
 
         <section id="skills" className="mt-20">
