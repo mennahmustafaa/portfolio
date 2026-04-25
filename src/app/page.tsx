@@ -1,64 +1,239 @@
 import Image from "next/image";
+import Link from "next/link";
+import { ArrowRight, Code2, Database, Rocket, Wrench } from "lucide-react";
+
+import { Navbar } from "@/components/navbar";
+import { Reveal } from "@/components/reveal";
 
 export default function Home() {
+  const skills = [
+    "Flutter",
+    "Dart",
+    "React Native",
+    "Swift",
+    "Kotlin",
+    "Java",
+    "Firebase",
+    "Supabase",
+    "MongoDB",
+    "SQL",
+    "REST APIs",
+    "Git",
+  ];
+
+  const offerings = [
+    "iOS / Android / Flutter app development",
+    "Static and dynamic app implementation from Figma/UI designs",
+    "Backend and API integration with clean architecture",
+    "Bug fixing, optimization, and performance improvements",
+    "App Store and Play Store submission support",
+    "Post-launch maintenance and updates",
+  ];
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen bg-[#070A12] text-white">
+      <Navbar />
+
+      <main className="mx-auto w-full max-w-6xl px-5 pb-24 pt-20 sm:px-8">
+        <section className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-white/5 to-white/[0.02] px-6 py-12 sm:px-12 sm:py-16">
+          <div className="pointer-events-none absolute inset-0 opacity-60">
+            <div className="absolute -left-24 -top-24 h-72 w-72 rounded-full bg-fuchsia-500/20 blur-3xl" />
+            <div className="absolute -right-24 -top-10 h-72 w-72 rounded-full bg-cyan-400/20 blur-3xl" />
+            <div className="absolute -bottom-28 left-1/2 h-80 w-80 -translate-x-1/2 rounded-full bg-indigo-500/15 blur-3xl" />
+          </div>
+
+          <div className="relative grid items-center gap-10 md:grid-cols-[0.85fr_1.15fr]">
+            <Reveal delay={0.1}>
+              <div className="hover-lift mx-auto w-full max-w-sm rounded-[2rem] border border-white/15 bg-white/[0.03] p-4">
+                <div className="overflow-hidden rounded-[1.6rem] border border-white/10 bg-black/40">
+                  <Image
+                    src="/profile.png"
+                    alt="Mennah profile photo"
+                    width={900}
+                    height={900}
+                    className="h-auto w-full object-cover"
+                    priority
+                  />
+                </div>
+              </div>
+            </Reveal>
+
+            <div className="flex flex-col gap-7">
+              <Reveal>
+                <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
+                  <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                  Mobile Developer | Software Engineer
+                </p>
+              </Reveal>
+
+              <Reveal delay={0.05}>
+                <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
+                  Mennah — building scalable, high-performance mobile apps.
+                </h1>
+              </Reveal>
+
+              <Reveal delay={0.1}>
+                <p className="max-w-2xl text-pretty text-base leading-7 text-white/70 sm:text-lg">
+                  I transform Figma and UX/UI designs into clean, user-friendly
+                  applications for iOS, Android, and Flutter with strong software
+                  engineering best practices.
+                </p>
+              </Reveal>
+
+              <Reveal delay={0.15}>
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <Link
+                    href="/mockups"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-black transition hover:bg-white/90"
+                  >
+                    View Projects <ArrowRight className="h-4 w-4" />
+                  </Link>
+                  <a
+                    href="#contact"
+                    className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.02] px-6 text-sm font-semibold text-white transition hover:bg-white/5"
+                  >
+                    Contact Me
+                  </a>
+                </div>
+              </Reveal>
+            </div>
+          </div>
+        </section>
+
+        <section id="projects" className="mt-20">
+          <Reveal>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Projects
+            </h2>
+          </Reveal>
+          <Reveal delay={0.05}>
+            <p className="mt-3 max-w-2xl text-white/65">
+              I build data-driven and production-ready mobile apps with responsive
+              layouts, maintainable code, and reliable communication throughout
+              the project.
+            </p>
+          </Reveal>
+
+          <div className="mt-8 grid gap-6 md:grid-cols-3">
+            <Reveal>
+              <div className="hover-lift rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <Code2 className="h-5 w-5 text-cyan-300" />
+                <h3 className="mt-4 text-lg font-semibold">Design to App</h3>
+                <p className="mt-2 text-sm leading-6 text-white/65">
+                  Convert your Figma or UI/UX screens into polished mobile apps.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={0.05}>
+              <div className="hover-lift rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <Database className="h-5 w-5 text-fuchsia-300" />
+                <h3 className="mt-4 text-lg font-semibold">Backend & Database</h3>
+                <p className="mt-2 text-sm leading-6 text-white/65">
+                  Firebase, Supabase, MongoDB, SQL, and API integration.
+                </p>
+              </div>
+            </Reveal>
+            <Reveal delay={0.1}>
+              <div className="hover-lift rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <Rocket className="h-5 w-5 text-indigo-300" />
+                <h3 className="mt-4 text-lg font-semibold">Launch Support</h3>
+                <p className="mt-2 text-sm leading-6 text-white/65">
+                  Testing, optimization, store submission, and post-launch
+                  updates.
+                </p>
+              </div>
+            </Reveal>
+          </div>
+
+          <Reveal delay={0.15}>
+            <div className="hover-lift mt-8 rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+              <p className="text-sm text-white/70">
+                Upload your real project screenshots and videos in{" "}
+                <span className="font-mono text-white">public/mockups/</span> then
+                open <span className="font-mono text-white">/mockups</span>.
+              </p>
+            </div>
+          </Reveal>
+        </section>
+
+        <section id="skills" className="mt-20">
+          <Reveal>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Technical Skills
+            </h2>
+          </Reveal>
+          <Reveal delay={0.05}>
+            <p className="mt-3 max-w-2xl text-white/65">
+              Practical stack for scalable, maintainable, and high-performance
+              mobile products.
+            </p>
+          </Reveal>
+
+          <Reveal delay={0.1}>
+            <div className="mt-8 flex flex-wrap gap-3">
+              {skills.map((skill) => (
+                <span
+                  key={skill}
+                  className="rounded-full border border-white/15 bg-white/[0.03] px-4 py-2 text-sm font-medium text-white/90"
+                >
+                  {skill}
+                </span>
+              ))}
+            </div>
+          </Reveal>
+        </section>
+
+        <section className="mt-20">
+          <Reveal>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              What I Offer
+            </h2>
+          </Reveal>
+          <div className="mt-8 grid gap-4 md:grid-cols-2">
+            {offerings.map((item, idx) => (
+              <Reveal key={item} delay={0.04 * idx}>
+                <div className="hover-lift rounded-2xl border border-white/10 bg-white/[0.02] p-5">
+                  <div className="flex items-start gap-3">
+                    <Wrench className="mt-0.5 h-4 w-4 text-white/70" />
+                    <p className="text-sm leading-6 text-white/80">{item}</p>
+                  </div>
+                </div>
+              </Reveal>
+            ))}
+          </div>
+        </section>
+
+        <section id="contact" className="mt-20">
+          <Reveal>
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Contact
+            </h2>
+          </Reveal>
+          <Reveal delay={0.05}>
+            <p className="mt-3 max-w-2xl text-white/65">
+              Let&apos;s build your app with quality, speed, and clear daily
+              updates.
+            </p>
+          </Reveal>
+          <Reveal delay={0.1}>
+            <div className="mt-8 flex flex-wrap gap-3">
+              <a
+                href="mailto:mennahmustafaa0@gmail.com"
+                className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90"
+              >
+                Email Me
+              </a>
+              <a
+                href="https://github.com/mennahmustafaa"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex h-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.03] px-5 text-sm font-semibold text-white transition hover:bg-white/5"
+              >
+                GitHub
+              </a>
+            </div>
+          </Reveal>
+        </section>
       </main>
     </div>
   );

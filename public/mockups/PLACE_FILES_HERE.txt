@@ -1,0 +1,11 @@
+Put your files here and refresh `/mockups`.
+
+Examples:
+- public/mockups/app-1/screen-1.png
+- public/mockups/app-1/screen-2.png
+- public/mockups/app-1/demo.mp4
+
+Supported:
+- Images: png, jpg, jpeg, webp, gif
+- Videos: mp4, webm, mov
+
