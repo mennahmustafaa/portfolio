@@ -4,31 +4,12 @@ import { ArrowRight, Code2, Database, Rocket, Wrench } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
 import { Reveal } from "@/components/reveal";
+import { getSiteContent } from "@/lib/site-content";
 
 export default function Home() {
-  const skills = [
-    "Flutter",
-    "Dart",
-    "React Native",
-    "Swift",
-    "Kotlin",
-    "Java",
-    "Firebase",
-    "Supabase",
-    "MongoDB",
-    "SQL",
-    "REST APIs",
-    "Git",
-  ];
-
-  const offerings = [
-    "iOS / Android / Flutter app development",
-    "Static and dynamic app implementation from Figma/UI designs",
-    "Backend and API integration with clean architecture",
-    "Bug fixing, optimization, and performance improvements",
-    "App Store and Play Store submission support",
-    "Post-launch maintenance and updates",
-  ];
+  const content = getSiteContent();
+  const skills = content.skills;
+  const offerings = content.offerings;
 
   return (
     <div className="min-h-screen bg-[#070A12] text-white">
@@ -62,21 +43,19 @@ export default function Home() {
               <Reveal>
                 <p className="inline-flex w-fit items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/80">
                   <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                  Mobile Developer | Software Engineer
+                  {content.badge}
                 </p>
               </Reveal>
 
               <Reveal delay={0.05}>
                 <h1 className="max-w-3xl text-balance text-4xl font-semibold tracking-tight sm:text-6xl">
-                  Mennah — building scalable, high-performance mobile apps.
+                  {content.heroTitle}
                 </h1>
               </Reveal>
 
               <Reveal delay={0.1}>
                 <p className="max-w-2xl text-pretty text-base leading-7 text-white/70 sm:text-lg">
-                  I transform Figma and UX/UI designs into clean, user-friendly
-                  applications for iOS, Android, and Flutter with strong software
-                  engineering best practices.
+                  {content.heroDescription}
                 </p>
               </Reveal>
 
@@ -108,9 +87,7 @@ export default function Home() {
           </Reveal>
           <Reveal delay={0.05}>
             <p className="mt-3 max-w-2xl text-white/65">
-              I build data-driven and production-ready mobile apps with responsive
-              layouts, maintainable code, and reliable communication throughout
-              the project.
+              {content.projectsIntro}
             </p>
           </Reveal>
 
@@ -164,8 +141,7 @@ export default function Home() {
           </Reveal>
           <Reveal delay={0.05}>
             <p className="mt-3 max-w-2xl text-white/65">
-              Practical stack for scalable, maintainable, and high-performance
-              mobile products.
+              {content.skillsIntro}
             </p>
           </Reveal>
 
@@ -211,20 +187,19 @@ export default function Home() {
           </Reveal>
           <Reveal delay={0.05}>
             <p className="mt-3 max-w-2xl text-white/65">
-              Let&apos;s build your app with quality, speed, and clear daily
-              updates.
+              {content.contactText}
             </p>
           </Reveal>
           <Reveal delay={0.1}>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
-                href="mailto:mennahmustafaa0@gmail.com"
+                href={`mailto:${content.email}`}
                 className="inline-flex h-11 items-center justify-center rounded-full bg-white px-5 text-sm font-semibold text-black transition hover:bg-white/90"
               >
                 Email Me
               </a>
               <a
-                href="https://github.com/mennahmustafaa"
+                href={content.github}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex h-11 items-center justify-center rounded-full border border-white/15 bg-white/[0.03] px-5 text-sm font-semibold text-white transition hover:bg-white/5"

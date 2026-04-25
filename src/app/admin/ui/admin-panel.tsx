@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Project = {
   slug: string;
@@ -10,6 +10,18 @@ type Project = {
 };
 
 type ProjectsResponse = { projects: Project[] };
+type SiteContent = {
+  badge: string;
+  heroTitle: string;
+  heroDescription: string;
+  projectsIntro: string;
+  skillsIntro: string;
+  contactText: string;
+  email: string;
+  github: string;
+  skills: string[];
+  offerings: string[];
+};
 
 function toSlug(value: string) {
   return value
@@ -28,8 +40,20 @@ export function AdminPanel() {
   const [slug, setSlug] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [content, setContent] = useState<SiteContent | null>(null);
 
   const effectiveSlug = useMemo(() => toSlug(slug || name), [slug, name]);
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        await loadProjects();
+        await loadContent();
+      } catch {
+        // If not authenticated, panel stays at login view.
+      }
+    })();
+  }, []);
 
   async function loadProjects() {
     const res = await fetch("/api/admin/projects");
@@ -42,6 +66,18 @@ export function AdminPanel() {
     const data = (await res.json()) as ProjectsResponse;
     setAuthed(true);
     setProjects(data.projects);
+  }
+
+  async function loadContent() {
+    const res = await fetch("/api/admin/content");
+    if (res.status === 401) {
+      setAuthed(false);
+      setContent(null);
+      return;
+    }
+    if (!res.ok) throw new Error("Failed loading content");
+    const data = (await res.json()) as { content: SiteContent };
+    setContent(data.content);
   }
 
   async function onLogin(e: FormEvent) {
@@ -62,8 +98,33 @@ export function AdminPanel() {
 
       setPassword("");
       await loadProjects();
+      await loadContent();
     } catch {
       setError("Login failed, try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onSaveContent(e: FormEvent) {
+    e.preventDefault();
+    if (!content) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/content", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(content),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || "Could not save content.");
+        return;
+      }
+      await loadContent();
+    } catch {
+      setError("Could not save content.");
     } finally {
       setLoading(false);
     }
@@ -135,6 +196,7 @@ export function AdminPanel() {
     await fetch("/api/admin/logout", { method: "POST" });
     setAuthed(false);
     setProjects([]);
+    setContent(null);
   }
 
   if (!authed) {
@@ -167,6 +229,162 @@ export function AdminPanel() {
 
   return (
     <div className="space-y-8">
+      <form
+        onSubmit={onSaveContent}
+        className="rounded-2xl border border-white/10 bg-white/[0.02] p-6"
+      >
+        <h2 className="text-lg font-semibold">Portfolio Content Editor</h2>
+        <p className="mt-2 text-sm text-white/65">
+          Edit your homepage text, links, skills, and services from here.
+        </p>
+
+        {content ? (
+          <div className="mt-5 grid gap-4">
+            <label className="text-sm">
+              <span className="mb-2 block text-white/70">Badge</span>
+              <input
+                value={content.badge}
+                onChange={(e) =>
+                  setContent({ ...content, badge: e.target.value })
+                }
+                className="h-11 w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="mb-2 block text-white/70">Hero Title</span>
+              <input
+                value={content.heroTitle}
+                onChange={(e) =>
+                  setContent({ ...content, heroTitle: e.target.value })
+                }
+                className="h-11 w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="mb-2 block text-white/70">Hero Description</span>
+              <textarea
+                value={content.heroDescription}
+                onChange={(e) =>
+                  setContent({ ...content, heroDescription: e.target.value })
+                }
+                rows={3}
+                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="mb-2 block text-white/70">Projects Intro</span>
+              <textarea
+                value={content.projectsIntro}
+                onChange={(e) =>
+                  setContent({ ...content, projectsIntro: e.target.value })
+                }
+                rows={2}
+                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="mb-2 block text-white/70">Skills Intro</span>
+              <textarea
+                value={content.skillsIntro}
+                onChange={(e) =>
+                  setContent({ ...content, skillsIntro: e.target.value })
+                }
+                rows={2}
+                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="mb-2 block text-white/70">Contact Text</span>
+              <textarea
+                value={content.contactText}
+                onChange={(e) =>
+                  setContent({ ...content, contactText: e.target.value })
+                }
+                rows={2}
+                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <label className="text-sm">
+                <span className="mb-2 block text-white/70">Email</span>
+                <input
+                  value={content.email}
+                  onChange={(e) =>
+                    setContent({ ...content, email: e.target.value })
+                  }
+                  className="h-11 w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm outline-none focus:border-white/30"
+                />
+              </label>
+              <label className="text-sm">
+                <span className="mb-2 block text-white/70">GitHub URL</span>
+                <input
+                  value={content.github}
+                  onChange={(e) =>
+                    setContent({ ...content, github: e.target.value })
+                  }
+                  className="h-11 w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm outline-none focus:border-white/30"
+                />
+              </label>
+            </div>
+
+            <label className="text-sm">
+              <span className="mb-2 block text-white/70">
+                Skills (one per line)
+              </span>
+              <textarea
+                value={content.skills.join("\n")}
+                onChange={(e) =>
+                  setContent({
+                    ...content,
+                    skills: e.target.value
+                      .split("\n")
+                      .map((x) => x.trim())
+                      .filter(Boolean),
+                  })
+                }
+                rows={5}
+                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+
+            <label className="text-sm">
+              <span className="mb-2 block text-white/70">
+                What I Offer (one per line)
+              </span>
+              <textarea
+                value={content.offerings.join("\n")}
+                onChange={(e) =>
+                  setContent({
+                    ...content,
+                    offerings: e.target.value
+                      .split("\n")
+                      .map((x) => x.trim())
+                      .filter(Boolean),
+                  })
+                }
+                rows={6}
+                className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
+              />
+            </label>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-white/65">Loading content...</p>
+        )}
+
+        <button
+          disabled={loading || !content}
+          className="mt-5 inline-flex h-11 items-center justify-center rounded-full bg-white px-6 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-70"
+        >
+          {loading ? "Saving..." : "Save Portfolio Content"}
+        </button>
+      </form>
+
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[0.02] p-5">
         <p className="text-sm text-white/75">
           You are logged in. Upload project assets and they will appear at
