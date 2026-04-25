@@ -1,8 +1,8 @@
 import { getMockups } from "@/lib/mockups";
 import { MockupsGallery } from "./ui/mockups-gallery";
 
-export default function MockupsPage() {
-  const items = getMockups();
+export default async function MockupsPage() {
+  const items = await getMockups();
 
   return (
     <div className="min-h-screen bg-[#070A12] text-white">

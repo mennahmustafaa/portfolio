@@ -1,13 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
-import { del, put } from "@vercel/blob";
+import { del, list, put } from "@vercel/blob";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
-import {
-  removeProjectMedia,
-  readProjectMediaStore,
-  upsertProjectMedia,
-} from "@/lib/project-media";
 
 export const runtime = "nodejs";
 
@@ -37,18 +32,45 @@ function safeFileName(name: string) {
   return name.replace(/[^a-zA-Z0-9._-]/g, "_");
 }
 
+function parseBlobPathname(pathname: string) {
+  // Expected: mockups/<slug>/<file>
+  const parts = pathname.split("/");
+  if (parts.length < 3 || parts[0] !== "mockups") return null;
+  const slug = parts[1];
+  const filename = parts.slice(2).join("/");
+  return { slug, filename };
+}
+
 export async function GET() {
   const unauth = ensureAuthed();
   if (unauth) return unauth;
 
-  const store = readProjectMediaStore();
-  if (store.projects.length) {
-    const projects = store.projects.map((project) => ({
-      slug: project.slug,
-      files: project.files.map((f) => f.name),
-      previewUrl: project.files[0]?.url ?? null,
-      count: project.files.length,
-    }));
+  const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  if (canUseBlob) {
+    const result = await list({ prefix: "mockups/" });
+    const bySlug = new Map<
+      string,
+      { slug: string; files: string[]; previewUrl: string | null; count: number }
+    >();
+
+    for (const blob of result.blobs) {
+      const parsed = parseBlobPathname(blob.pathname);
+      if (!parsed) continue;
+      const current = bySlug.get(parsed.slug) ?? {
+        slug: parsed.slug,
+        files: [],
+        previewUrl: null,
+        count: 0,
+      };
+      current.files.push(parsed.filename);
+      current.count += 1;
+      if (!current.previewUrl) current.previewUrl = blob.url;
+      bySlug.set(parsed.slug, current);
+    }
+
+    const projects = Array.from(bySlug.values()).sort((a, b) =>
+      a.slug.localeCompare(b.slug)
+    );
     return NextResponse.json({ projects });
   }
 
@@ -107,9 +129,6 @@ export async function POST(request: Request) {
       );
     }
 
-    const uploaded: { name: string; url: string; type: "image" | "video" }[] =
-      [];
-
     const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
     if (canUseBlob) {
       for (const file of files) {
@@ -118,13 +137,8 @@ export async function POST(request: Request) {
         if (!(IMAGE_EXT.has(ext) || VIDEO_EXT.has(ext))) continue;
 
         const filename = safeFileName(file.name);
-        const blob = await put(`mockups/${slug}/${Date.now()}-${filename}`, file, {
+        await put(`mockups/${slug}/${Date.now()}-${filename}`, file, {
           access: "public",
-        });
-        uploaded.push({
-          name: filename,
-          url: blob.url,
-          type: IMAGE_EXT.has(ext) ? "image" : "video",
         });
       }
     } else {
@@ -140,31 +154,29 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(await file.arrayBuffer());
         const filename = safeFileName(file.name);
         fs.writeFileSync(path.join(projectDir, filename), buffer);
-        uploaded.push({
-          name: filename,
-          url: `/mockups/${slug}/${filename}`,
-          type: IMAGE_EXT.has(ext) ? "image" : "video",
-        });
       }
     }
 
-    upsertProjectMedia(slug, uploaded);
     return NextResponse.json({ ok: true, slug });
   } catch (error) {
-    const isVercel = process.env.VERCEL === "1";
     const code = (error as NodeJS.ErrnoException | undefined)?.code;
-    if (isVercel || code === "EROFS" || code === "EPERM") {
+    const message =
+      (error as { message?: string } | undefined)?.message ?? "Unknown error";
+    const isReadOnly = code === "EROFS" || code === "EPERM";
+    const hasBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+
+    if (isReadOnly && !hasBlob) {
       return NextResponse.json(
         {
           error:
-            "Live upload is disabled on this deployment because Vercel runtime storage is read-only. Use local admin for uploads or switch to cloud storage (Vercel Blob/Cloudinary).",
+            "Upload failed because server filesystem is read-only and Blob storage is not configured.",
         },
         { status: 501 }
       );
     }
 
     return NextResponse.json(
-      { error: "Upload failed due to a server error." },
+      { error: `Upload failed: ${message}` },
       { status: 500 }
     );
   }
@@ -181,12 +193,10 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Invalid slug" }, { status: 400 });
   }
 
-  const removed = removeProjectMedia(slug);
   const shouldDeleteBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
-  if (removed?.files?.length && shouldDeleteBlob) {
-    const blobUrls = removed.files
-      .map((f) => f.url)
-      .filter((u) => u.startsWith("http"));
+  if (shouldDeleteBlob) {
+    const result = await list({ prefix: `mockups/${slug}/` });
+    const blobUrls = result.blobs.map((b) => b.url);
     if (blobUrls.length) {
       await del(blobUrls).catch(() => {
         // Keep delete resilient even if blob cleanup fails.
@@ -200,7 +210,7 @@ export async function DELETE(request: Request) {
     fs.rmSync(projectDir, { recursive: true, force: true });
   }
 
-  if (!removed && !hadLocalProject) {
+  if (!shouldDeleteBlob && !hadLocalProject) {
     return NextResponse.json({ error: "Project not found" }, { status: 404 });
   }
 

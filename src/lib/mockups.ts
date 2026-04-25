@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { readProjectMediaStore } from "@/lib/project-media";
+import { list } from "@vercel/blob";
 
 export type MockupItem = {
   type: "image" | "video";
@@ -32,16 +32,30 @@ function walk(dirAbs: string, rootAbs: string, out: MockupItem[]) {
   }
 }
 
-export function getMockups(): MockupItem[] {
-  const store = readProjectMediaStore();
-  if (store.projects.length) {
-    const blobItems = store.projects.flatMap((project) =>
-      project.files.map((file) => ({
-        type: file.type,
-        src: file.url,
-        name: file.name,
-      }))
-    );
+export async function getMockups(): Promise<MockupItem[]> {
+  const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  if (canUseBlob) {
+    const result = await list({ prefix: "mockups/" });
+    const blobItems = result.blobs
+      .map((blob) => {
+        const ext = path.extname(blob.pathname).toLowerCase();
+        if (IMAGE_EXT.has(ext)) {
+          return {
+            type: "image" as const,
+            src: blob.url,
+            name: path.basename(blob.pathname),
+          };
+        }
+        if (VIDEO_EXT.has(ext)) {
+          return {
+            type: "video" as const,
+            src: blob.url,
+            name: path.basename(blob.pathname),
+          };
+        }
+        return null;
+      })
+      .filter((item): item is MockupItem => item !== null);
     blobItems.sort((a, b) => a.name.localeCompare(b.name));
     return blobItems;
   }
