@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import { readProjectMediaStore } from "@/lib/project-media";
 
 export type MockupItem = {
   type: "image" | "video";
@@ -32,6 +33,19 @@ function walk(dirAbs: string, rootAbs: string, out: MockupItem[]) {
 }
 
 export function getMockups(): MockupItem[] {
+  const store = readProjectMediaStore();
+  if (store.projects.length) {
+    const blobItems = store.projects.flatMap((project) =>
+      project.files.map((file) => ({
+        type: file.type,
+        src: file.url,
+        name: file.name,
+      }))
+    );
+    blobItems.sort((a, b) => a.name.localeCompare(b.name));
+    return blobItems;
+  }
+
   const rootAbs = path.join(process.cwd(), "public", "mockups");
   if (!fs.existsSync(rootAbs)) return [];
 
