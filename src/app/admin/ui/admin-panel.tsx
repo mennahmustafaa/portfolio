@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Project = {
   slug: string;
+  title?: string;
+  description?: string;
   files: string[];
   previewUrl: string | null;
   count: number;
@@ -37,6 +39,8 @@ export function AdminPanel() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [name, setName] = useState("");
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
   const [slug, setSlug] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
@@ -146,6 +150,8 @@ export function AdminPanel() {
 
       const form = new FormData();
       form.set("name", name);
+      form.set("title", title || name);
+      form.set("description", description);
       form.set("slug", effectiveSlug);
       for (const file of Array.from(files)) {
         form.append("files", file);
@@ -163,6 +169,8 @@ export function AdminPanel() {
       }
 
       setName("");
+      setTitle("");
+      setDescription("");
       setSlug("");
       setFiles(null);
       await loadProjects();
@@ -419,6 +427,16 @@ export function AdminPanel() {
           </label>
 
           <label className="text-sm">
+            <span className="mb-2 block text-white/70">Project Title</span>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="AIRA - Mental Health App"
+              className="h-11 w-full rounded-xl border border-white/15 bg-black/30 px-3 text-sm outline-none focus:border-white/30"
+            />
+          </label>
+
+          <label className="text-sm">
             <span className="mb-2 block text-white/70">Slug (optional)</span>
             <input
               value={slug}
@@ -428,6 +446,18 @@ export function AdminPanel() {
             />
           </label>
         </div>
+        <label className="mt-4 block text-sm">
+          <span className="mb-2 block text-white/70">
+            Small Description (for homepage card)
+          </span>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+            placeholder="Short summary of project outcome and tech."
+            className="w-full rounded-xl border border-white/15 bg-black/30 px-3 py-2 text-sm outline-none focus:border-white/30"
+          />
+        </label>
 
         <p className="mt-3 text-xs text-white/55">
           Folder will be: <span className="font-mono">{effectiveSlug}</span>
@@ -470,7 +500,12 @@ export function AdminPanel() {
                 key={project.slug}
                 className="rounded-xl border border-white/10 bg-black/20 p-4"
               >
-                <p className="font-medium">{project.slug}</p>
+                <p className="font-medium">{project.title || project.slug}</p>
+                {project.description ? (
+                  <p className="mt-1 text-xs text-white/70">
+                    {project.description}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs text-white/60">
                   {project.count} file(s)
                 </p>

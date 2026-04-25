@@ -4,10 +4,12 @@ import { ArrowRight, Code2, Database, Rocket, Wrench } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
 import { Reveal } from "@/components/reveal";
+import { getFeaturedProjects } from "@/lib/featured-projects";
 import { getSiteContent } from "@/lib/site-content";
 
-export default function Home() {
+export default async function Home() {
   const content = getSiteContent();
+  const featuredProjects = await getFeaturedProjects();
   const skills = content.skills;
   const offerings = content.offerings;
 
@@ -91,7 +93,36 @@ export default function Home() {
             </p>
           </Reveal>
 
-          <div className="mt-8 grid gap-6 md:grid-cols-3">
+          {featuredProjects.length ? (
+            <div className="mt-8 grid gap-6 md:grid-cols-3">
+              {featuredProjects.map((project, idx) => (
+                <Reveal key={project.slug} delay={idx * 0.04}>
+                  <article className="hover-lift overflow-hidden rounded-2xl border border-white/10 bg-white/[0.02]">
+                    <div className="relative aspect-[16/10] w-full bg-black/30">
+                      <Image
+                        src={project.coverUrl}
+                        alt={project.title}
+                        fill
+                        className="object-cover"
+                        sizes="(max-width: 1024px) 50vw, 33vw"
+                      />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-lg font-semibold text-white">
+                        {project.title}
+                      </h3>
+                      <p className="mt-2 line-clamp-2 text-sm leading-6 text-white/70">
+                        {project.description}
+                      </p>
+                      <p className="mt-3 text-xs text-white/45">{project.slug}</p>
+                    </div>
+                  </article>
+                </Reveal>
+              ))}
+            </div>
+          ) : null}
+
+          <div className="mt-10 grid gap-6 md:grid-cols-3">
             <Reveal>
               <div className="hover-lift rounded-2xl border border-white/10 bg-white/[0.02] p-6">
                 <Code2 className="h-5 w-5 text-cyan-300" />

@@ -3,11 +3,24 @@ import path from "node:path";
 import { NextResponse } from "next/server";
 import { del, list, put } from "@vercel/blob";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
+import {
+  getFeaturedProjects,
+  removeFeaturedProject,
+  upsertFeaturedProject,
+} from "@/lib/featured-projects";
 
 export const runtime = "nodejs";
 
 const IMAGE_EXT = new Set([".png", ".jpg", ".jpeg", ".webp", ".gif"]);
 const VIDEO_EXT = new Set([".mp4", ".webm", ".mov"]);
+type AdminProjectSummary = {
+  slug: string;
+  title: string;
+  description: string;
+  files: string[];
+  previewUrl: string | null;
+  count: number;
+};
 
 function ensureAuthed() {
   if (!isAdminAuthenticated()) {
@@ -47,17 +60,18 @@ export async function GET() {
 
   const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
   if (canUseBlob) {
+    const featured = await getFeaturedProjects();
+    const featuredMap = new Map(featured.map((p) => [p.slug, p]));
     const result = await list({ prefix: "mockups/" });
-    const bySlug = new Map<
-      string,
-      { slug: string; files: string[]; previewUrl: string | null; count: number }
-    >();
+    const bySlug = new Map<string, AdminProjectSummary>();
 
     for (const blob of result.blobs) {
       const parsed = parseBlobPathname(blob.pathname);
       if (!parsed) continue;
-      const current = bySlug.get(parsed.slug) ?? {
+      const current: AdminProjectSummary = bySlug.get(parsed.slug) ?? {
         slug: parsed.slug,
+        title: featuredMap.get(parsed.slug)?.title ?? parsed.slug,
+        description: featuredMap.get(parsed.slug)?.description ?? "",
         files: [],
         previewUrl: null,
         count: 0,
@@ -83,6 +97,8 @@ export async function GET() {
     .map((d) => d.name)
     .sort((a, b) => a.localeCompare(b));
 
+  const featured = await getFeaturedProjects();
+  const featuredMap = new Map(featured.map((p) => [p.slug, p]));
   const projects = dirs.map((slug) => {
     const dirAbs = path.join(root, slug);
     const files = fs
@@ -95,6 +111,8 @@ export async function GET() {
 
     return {
       slug,
+      title: featuredMap.get(slug)?.title ?? slug,
+      description: featuredMap.get(slug)?.description ?? "",
       files,
       previewUrl: files[0] ? `/mockups/${slug}/${files[0]}` : null,
       count: files.length,
@@ -111,6 +129,8 @@ export async function POST(request: Request) {
   try {
     const form = await request.formData();
     const rawName = String(form.get("name") || "");
+    const rawTitle = String(form.get("title") || "");
+    const rawDescription = String(form.get("description") || "");
     const rawSlug = String(form.get("slug") || "");
     const slug = cleanSlug(rawSlug || rawName);
     const files = form.getAll("files");
@@ -130,6 +150,7 @@ export async function POST(request: Request) {
     }
 
     const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+    const uploadedUrls: { url: string; type: "image" | "video" }[] = [];
     if (canUseBlob) {
       for (const file of files) {
         if (!(file instanceof File)) continue;
@@ -137,8 +158,12 @@ export async function POST(request: Request) {
         if (!(IMAGE_EXT.has(ext) || VIDEO_EXT.has(ext))) continue;
 
         const filename = safeFileName(file.name);
-        await put(`mockups/${slug}/${Date.now()}-${filename}`, file, {
+        const blob = await put(`mockups/${slug}/${Date.now()}-${filename}`, file, {
           access: "public",
+        });
+        uploadedUrls.push({
+          url: blob.url,
+          type: IMAGE_EXT.has(ext) ? "image" : "video",
         });
       }
     } else {
@@ -154,8 +179,28 @@ export async function POST(request: Request) {
         const buffer = Buffer.from(await file.arrayBuffer());
         const filename = safeFileName(file.name);
         fs.writeFileSync(path.join(projectDir, filename), buffer);
+        uploadedUrls.push({
+          url: `/mockups/${slug}/${filename}`,
+          type: IMAGE_EXT.has(ext) ? "image" : "video",
+        });
       }
     }
+
+    if (!uploadedUrls.length) {
+      return NextResponse.json(
+        { error: "No supported image/video files were uploaded." },
+        { status: 400 }
+      );
+    }
+
+    const cover =
+      uploadedUrls.find((f) => f.type === "image")?.url ?? uploadedUrls[0].url;
+    await upsertFeaturedProject({
+      slug,
+      title: rawTitle.trim() || rawName.trim() || slug,
+      description: rawDescription.trim() || "Mobile app project showcase.",
+      coverUrl: cover,
+    });
 
     return NextResponse.json({ ok: true, slug });
   } catch (error) {
@@ -203,6 +248,7 @@ export async function DELETE(request: Request) {
       });
     }
   }
+  await removeFeaturedProject(slug);
 
   const projectDir = path.join(projectsRoot(), slug);
   const hadLocalProject = fs.existsSync(projectDir);
