@@ -32,29 +32,31 @@ function walk(dirAbs: string, rootAbs: string, out: MockupItem[]) {
   }
 }
 
+function mapBlobToItem(blob: { pathname: string; url: string }) {
+  const ext = path.extname(blob.pathname).toLowerCase();
+  if (IMAGE_EXT.has(ext)) {
+    return {
+      type: "image" as const,
+      src: blob.url,
+      name: path.basename(blob.pathname),
+    };
+  }
+  if (VIDEO_EXT.has(ext)) {
+    return {
+      type: "video" as const,
+      src: blob.url,
+      name: path.basename(blob.pathname),
+    };
+  }
+  return null;
+}
+
 export async function getMockups(): Promise<MockupItem[]> {
   const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
   if (canUseBlob) {
     const result = await list({ prefix: "mockups/" });
     const blobItems = result.blobs
-      .map((blob) => {
-        const ext = path.extname(blob.pathname).toLowerCase();
-        if (IMAGE_EXT.has(ext)) {
-          return {
-            type: "image" as const,
-            src: blob.url,
-            name: path.basename(blob.pathname),
-          };
-        }
-        if (VIDEO_EXT.has(ext)) {
-          return {
-            type: "video" as const,
-            src: blob.url,
-            name: path.basename(blob.pathname),
-          };
-        }
-        return null;
-      })
+      .map(mapBlobToItem)
       .filter((item): item is MockupItem => item !== null);
     blobItems.sort((a, b) => a.name.localeCompare(b.name));
     return blobItems;
@@ -63,6 +65,25 @@ export async function getMockups(): Promise<MockupItem[]> {
   const rootAbs = path.join(process.cwd(), "public", "mockups");
   if (!fs.existsSync(rootAbs)) return [];
 
+  const out: MockupItem[] = [];
+  walk(rootAbs, rootAbs, out);
+  out.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+export async function getProjectMediaBySlug(slug: string): Promise<MockupItem[]> {
+  const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+  if (canUseBlob) {
+    const result = await list({ prefix: `mockups/${slug}/` });
+    const blobItems = result.blobs
+      .map(mapBlobToItem)
+      .filter((item): item is MockupItem => item !== null);
+    blobItems.sort((a, b) => a.name.localeCompare(b.name));
+    return blobItems;
+  }
+
+  const rootAbs = path.join(process.cwd(), "public", "mockups", slug);
+  if (!fs.existsSync(rootAbs)) return [];
   const out: MockupItem[] = [];
   walk(rootAbs, rootAbs, out);
   out.sort((a, b) => a.name.localeCompare(b.name));

@@ -6,7 +6,11 @@ type Project = {
   slug: string;
   title?: string;
   description?: string;
-  files: string[];
+  files: {
+    name: string;
+    url: string;
+    type: "image" | "video";
+  }[];
   previewUrl: string | null;
   count: number;
 };
@@ -44,6 +48,13 @@ export function AdminPanel() {
   const [slug, setSlug] = useState("");
   const [files, setFiles] = useState<FileList | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [renameDrafts, setRenameDrafts] = useState<Record<string, string>>({});
+  const [projectDrafts, setProjectDrafts] = useState<
+    Record<string, { title: string; description: string }>
+  >({});
+  const [appendFiles, setAppendFiles] = useState<Record<string, FileList | null>>(
+    {}
+  );
   const [content, setContent] = useState<SiteContent | null>(null);
 
   const effectiveSlug = useMemo(() => toSlug(slug || name), [slug, name]);
@@ -59,6 +70,13 @@ export function AdminPanel() {
     })();
   }, []);
 
+  function showAlert(message: string, isError = false) {
+    if (isError) setError(message);
+    if (typeof window !== "undefined") {
+      window.alert(message);
+    }
+  }
+
   async function loadProjects() {
     const res = await fetch("/api/admin/projects");
     if (res.status === 401) {
@@ -70,6 +88,18 @@ export function AdminPanel() {
     const data = (await res.json()) as ProjectsResponse;
     setAuthed(true);
     setProjects(data.projects);
+    setProjectDrafts((prev) => {
+      const next = { ...prev };
+      for (const project of data.projects) {
+        if (!next[project.slug]) {
+          next[project.slug] = {
+            title: project.title || project.slug,
+            description: project.description || "",
+          };
+        }
+      }
+      return next;
+    });
   }
 
   async function loadContent() {
@@ -96,15 +126,16 @@ export function AdminPanel() {
       });
 
       if (!res.ok) {
-        setError("Wrong password.");
+        showAlert("Login failed: wrong password.", true);
         return;
       }
 
       setPassword("");
       await loadProjects();
       await loadContent();
+      showAlert("Login successful.");
     } catch {
-      setError("Login failed, try again.");
+      showAlert("Login failed, try again.", true);
     } finally {
       setLoading(false);
     }
@@ -123,12 +154,13 @@ export function AdminPanel() {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Could not save content.");
+        showAlert(data.error || "Could not save content.", true);
         return;
       }
       await loadContent();
+      showAlert("Portfolio content saved successfully.");
     } catch {
-      setError("Could not save content.");
+      showAlert("Could not save content.", true);
     } finally {
       setLoading(false);
     }
@@ -140,11 +172,11 @@ export function AdminPanel() {
     setError("");
     try {
       if (!name.trim()) {
-        setError("Project name is required.");
+        showAlert("Project name is required.", true);
         return;
       }
       if (!files?.length) {
-        setError("Choose at least one image/video.");
+        showAlert("Choose at least one image/video.", true);
         return;
       }
 
@@ -164,7 +196,7 @@ export function AdminPanel() {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setError(data.error || "Upload failed.");
+        showAlert(data.error || "Upload failed.", true);
         return;
       }
 
@@ -174,8 +206,9 @@ export function AdminPanel() {
       setSlug("");
       setFiles(null);
       await loadProjects();
+      showAlert("Project uploaded successfully.");
     } catch {
-      setError("Upload failed, try again.");
+      showAlert("Upload failed, try again.", true);
     } finally {
       setLoading(false);
     }
@@ -189,12 +222,158 @@ export function AdminPanel() {
         method: "DELETE",
       });
       if (!res.ok) {
-        setError("Could not delete project.");
+        showAlert("Could not delete project.", true);
         return;
       }
       await loadProjects();
+      showAlert("Project deleted successfully.");
     } catch {
-      setError("Could not delete project.");
+      showAlert("Could not delete project.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onReorder(projectSlug: string, direction: "up" | "down") {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "reorder", slug: projectSlug, direction }),
+      });
+      if (!res.ok) {
+        showAlert("Could not reorder project.", true);
+        return;
+      }
+      await loadProjects();
+      showAlert("Project order updated.");
+    } catch {
+      showAlert("Could not reorder project.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onDeleteFile(projectSlug: string, fileName: string) {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete_file",
+          slug: projectSlug,
+          oldName: fileName,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showAlert(data.error || "Could not delete file.", true);
+        return;
+      }
+      await loadProjects();
+      showAlert("File deleted successfully.");
+    } catch {
+      showAlert("Could not delete file.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onSaveProjectMeta(projectSlug: string) {
+    const draft = projectDrafts[projectSlug];
+    if (!draft) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "update_project",
+          slug: projectSlug,
+          title: draft.title,
+          description: draft.description,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showAlert(data.error || "Could not update project details.", true);
+        return;
+      }
+      await loadProjects();
+      showAlert("Project details updated.");
+    } catch {
+      showAlert("Could not update project details.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onAppendFiles(project: Project) {
+    const filesForProject = appendFiles[project.slug];
+    if (!filesForProject?.length) return;
+    setLoading(true);
+    setError("");
+    try {
+      const form = new FormData();
+      form.set("name", project.title || project.slug);
+      form.set("title", project.title || project.slug);
+      form.set("description", project.description || "");
+      form.set("slug", project.slug);
+      for (const file of Array.from(filesForProject)) {
+        form.append("files", file);
+      }
+
+      const res = await fetch("/api/admin/projects", {
+        method: "POST",
+        body: form,
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showAlert(data.error || "Could not add files.", true);
+        return;
+      }
+      setAppendFiles((prev) => ({ ...prev, [project.slug]: null }));
+      await loadProjects();
+      showAlert("Files added successfully.");
+    } catch {
+      showAlert("Could not add files.", true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onRenameFile(projectSlug: string, oldName: string) {
+    const key = `${projectSlug}:${oldName}`;
+    const newName = (renameDrafts[key] || "").trim();
+    if (!newName) return;
+    setLoading(true);
+    setError("");
+    try {
+      const res = await fetch("/api/admin/projects", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "rename_file",
+          slug: projectSlug,
+          oldName,
+          newName,
+        }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showAlert(data.error || "Could not rename file.", true);
+        return;
+      }
+      setRenameDrafts((prev) => ({ ...prev, [key]: "" }));
+      await loadProjects();
+      showAlert("File renamed successfully.");
+    } catch {
+      showAlert("Could not rename file.", true);
     } finally {
       setLoading(false);
     }
@@ -500,16 +679,64 @@ export function AdminPanel() {
                 key={project.slug}
                 className="rounded-xl border border-white/10 bg-black/20 p-4"
               >
-                <p className="font-medium">{project.title || project.slug}</p>
-                {project.description ? (
-                  <p className="mt-1 text-xs text-white/70">
-                    {project.description}
-                  </p>
-                ) : null}
+                <div className="grid gap-2">
+                  <input
+                    value={projectDrafts[project.slug]?.title ?? project.title ?? project.slug}
+                    onChange={(e) =>
+                      setProjectDrafts((prev) => ({
+                        ...prev,
+                        [project.slug]: {
+                          title: e.target.value,
+                          description:
+                            prev[project.slug]?.description ??
+                            project.description ??
+                            "",
+                        },
+                      }))
+                    }
+                    className="h-9 w-full rounded-md border border-white/15 bg-black/30 px-2 text-sm font-medium outline-none focus:border-white/30"
+                  />
+                  <textarea
+                    value={
+                      projectDrafts[project.slug]?.description ??
+                      project.description ??
+                      ""
+                    }
+                    onChange={(e) =>
+                      setProjectDrafts((prev) => ({
+                        ...prev,
+                        [project.slug]: {
+                          title: prev[project.slug]?.title ?? project.title ?? project.slug,
+                          description: e.target.value,
+                        },
+                      }))
+                    }
+                    rows={2}
+                    className="w-full rounded-md border border-white/15 bg-black/30 px-2 py-1 text-xs outline-none focus:border-white/30"
+                  />
+                  <button
+                    onClick={() => onSaveProjectMeta(project.slug)}
+                    className="inline-flex h-8 w-fit items-center rounded-md border border-white/20 px-3 text-xs font-semibold text-white/90"
+                  >
+                    Save Details
+                  </button>
+                </div>
                 <p className="mt-1 text-xs text-white/60">
                   {project.count} file(s)
                 </p>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    onClick={() => onReorder(project.slug, "up")}
+                    className="inline-flex h-8 items-center rounded-full border border-white/20 px-3 text-xs font-semibold text-white/90"
+                  >
+                    Move Up
+                  </button>
+                  <button
+                    onClick={() => onReorder(project.slug, "down")}
+                    className="inline-flex h-8 items-center rounded-full border border-white/20 px-3 text-xs font-semibold text-white/90"
+                  >
+                    Move Down
+                  </button>
                   <a
                     href={`/mockups`}
                     target="_blank"
@@ -525,6 +752,73 @@ export function AdminPanel() {
                     Delete Project
                   </button>
                 </div>
+                {project.files.length ? (
+                  <div className="mt-4 space-y-2 border-t border-white/10 pt-3">
+                    <div className="rounded-lg border border-white/10 bg-black/20 p-2">
+                      <label className="block text-xs text-white/70">
+                        Add more images/videos
+                      </label>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <input
+                          type="file"
+                          multiple
+                          accept=".png,.jpg,.jpeg,.webp,.gif,.mp4,.webm,.mov"
+                          onChange={(e) =>
+                            setAppendFiles((prev) => ({
+                              ...prev,
+                              [project.slug]: e.target.files,
+                            }))
+                          }
+                          className="block w-full cursor-pointer rounded-md border border-white/15 bg-black/30 p-2 text-xs text-white/80 file:mr-2 file:rounded file:border-0 file:bg-white file:px-2 file:py-1 file:text-xs file:font-semibold file:text-black"
+                        />
+                        <button
+                          onClick={() => onAppendFiles(project)}
+                          className="inline-flex h-8 items-center rounded-md border border-white/20 px-3 text-xs font-semibold text-white/90"
+                        >
+                          Add Files
+                        </button>
+                      </div>
+                    </div>
+                    {project.files.map((file) => {
+                      const key = `${project.slug}:${file.name}`;
+                      return (
+                        <div
+                          key={key}
+                          className="rounded-lg border border-white/10 bg-black/20 p-2"
+                        >
+                          <p className="truncate text-xs text-white/75">
+                            {file.name}
+                          </p>
+                          <div className="mt-2 flex gap-2">
+                            <input
+                              value={renameDrafts[key] ?? ""}
+                              onChange={(e) =>
+                                setRenameDrafts((prev) => ({
+                                  ...prev,
+                                  [key]: e.target.value,
+                                }))
+                              }
+                              placeholder="new-name.png"
+                              className="h-8 flex-1 rounded-md border border-white/15 bg-black/30 px-2 text-xs outline-none focus:border-white/30"
+                            />
+                            <button
+                              onClick={() => onRenameFile(project.slug, file.name)}
+                              className="inline-flex h-8 items-center rounded-md border border-white/20 px-2 text-xs font-semibold text-white/90"
+                            >
+                              Rename
+                            </button>
+                            <button
+                              onClick={() => onDeleteFile(project.slug, file.name)}
+                              className="inline-flex h-8 items-center rounded-md border border-rose-300/30 px-2 text-xs font-semibold text-rose-200"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : null}
               </div>
             ))
           ) : (

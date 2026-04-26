@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import { getSiteContent, saveSiteContent } from "@/lib/site-content";
 
@@ -28,6 +29,8 @@ export async function PUT(request: Request) {
   }
 
   const content = saveSiteContent(body);
+  revalidatePath("/");
+  revalidatePath("/admin");
   return NextResponse.json({ ok: true, content });
 }
 

@@ -2,9 +2,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { NextResponse } from "next/server";
 import { del, list, put } from "@vercel/blob";
+import { revalidatePath } from "next/cache";
 import { isAdminAuthenticated } from "@/lib/admin-auth";
 import {
   getFeaturedProjects,
+  getFeaturedProjectBySlug,
+  reorderFeaturedProject,
+  refreshFeaturedProjectCover,
   removeFeaturedProject,
   upsertFeaturedProject,
 } from "@/lib/featured-projects";
@@ -17,7 +21,11 @@ type AdminProjectSummary = {
   slug: string;
   title: string;
   description: string;
-  files: string[];
+  files: {
+    name: string;
+    url: string;
+    type: "image" | "video";
+  }[];
   previewUrl: string | null;
   count: number;
 };
@@ -62,6 +70,7 @@ export async function GET() {
   if (canUseBlob) {
     const featured = await getFeaturedProjects();
     const featuredMap = new Map(featured.map((p) => [p.slug, p]));
+    const orderMap = new Map(featured.map((p, index) => [p.slug, index]));
     const result = await list({ prefix: "mockups/" });
     const bySlug = new Map<string, AdminProjectSummary>();
 
@@ -76,15 +85,22 @@ export async function GET() {
         previewUrl: null,
         count: 0,
       };
-      current.files.push(parsed.filename);
+      const ext = path.extname(parsed.filename).toLowerCase();
+      const type: "image" | "video" = IMAGE_EXT.has(ext) ? "image" : "video";
+      current.files.push({ name: parsed.filename, url: blob.url, type });
       current.count += 1;
       if (!current.previewUrl) current.previewUrl = blob.url;
       bySlug.set(parsed.slug, current);
     }
 
-    const projects = Array.from(bySlug.values()).sort((a, b) =>
-      a.slug.localeCompare(b.slug)
-    );
+    const projects = Array.from(bySlug.values()).sort((a, b) => {
+      const aOrder = orderMap.get(a.slug);
+      const bOrder = orderMap.get(b.slug);
+      if (aOrder !== undefined && bOrder !== undefined) return aOrder - bOrder;
+      if (aOrder !== undefined) return -1;
+      if (bOrder !== undefined) return 1;
+      return a.slug.localeCompare(b.slug);
+    });
     return NextResponse.json({ projects });
   }
 
@@ -113,7 +129,11 @@ export async function GET() {
       slug,
       title: featuredMap.get(slug)?.title ?? slug,
       description: featuredMap.get(slug)?.description ?? "",
-      files,
+      files: files.map((name) => {
+        const ext = path.extname(name).toLowerCase();
+        const type: "image" | "video" = IMAGE_EXT.has(ext) ? "image" : "video";
+        return { name, url: `/mockups/${slug}/${name}`, type };
+      }),
       previewUrl: files[0] ? `/mockups/${slug}/${files[0]}` : null,
       count: files.length,
     };
@@ -201,6 +221,10 @@ export async function POST(request: Request) {
       description: rawDescription.trim() || "Mobile app project showcase.",
       coverUrl: cover,
     });
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath("/mockups");
+    revalidatePath(`/projects/${slug}`);
 
     return NextResponse.json({ ok: true, slug });
   } catch (error) {
@@ -249,6 +273,10 @@ export async function DELETE(request: Request) {
     }
   }
   await removeFeaturedProject(slug);
+  revalidatePath("/");
+  revalidatePath("/admin");
+  revalidatePath("/mockups");
+  revalidatePath(`/projects/${slug}`);
 
   const projectDir = path.join(projectsRoot(), slug);
   const hadLocalProject = fs.existsSync(projectDir);
@@ -261,5 +289,164 @@ export async function DELETE(request: Request) {
   }
 
   return NextResponse.json({ ok: true });
+}
+
+export async function PATCH(request: Request) {
+  const unauth = ensureAuthed();
+  if (unauth) return unauth;
+
+  const body = (await request.json().catch(() => null)) as
+    | {
+        action?:
+          | "reorder"
+          | "delete_file"
+          | "rename_file"
+          | "update_project";
+        slug?: string;
+        direction?: "up" | "down";
+        oldName?: string;
+        newName?: string;
+        title?: string;
+        description?: string;
+      }
+    | null;
+  const slug = cleanSlug(String(body?.slug || ""));
+  if (!slug || !body?.action) {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 });
+  }
+
+  if (body.action === "reorder") {
+    const direction = body.direction;
+    if (direction !== "up" && direction !== "down") {
+      return NextResponse.json({ error: "Invalid reorder request." }, { status: 400 });
+    }
+    await reorderFeaturedProject(slug, direction);
+    revalidatePath("/");
+    revalidatePath("/admin");
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "delete_file") {
+    const oldName = String(body.oldName || "");
+    if (!oldName) {
+      return NextResponse.json({ error: "File name is required." }, { status: 400 });
+    }
+    const shouldDeleteBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+    if (shouldDeleteBlob) {
+      const result = await list({ prefix: `mockups/${slug}/` });
+      const target = result.blobs.find((b) => path.basename(b.pathname) === oldName);
+      if (target) await del(target.url);
+    } else {
+      const filePath = path.join(projectsRoot(), slug, oldName);
+      if (fs.existsSync(filePath)) fs.rmSync(filePath, { force: true });
+    }
+    await refreshFeaturedProjectCover(slug);
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath("/mockups");
+    revalidatePath(`/projects/${slug}`);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "rename_file") {
+    const oldName = String(body.oldName || "");
+    const newName = safeFileName(String(body.newName || ""));
+    if (!oldName || !newName) {
+      return NextResponse.json(
+        { error: "Old and new file names are required." },
+        { status: 400 }
+      );
+    }
+
+    const shouldUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+    if (shouldUseBlob) {
+      const result = await list({ prefix: `mockups/${slug}/` });
+      const target = result.blobs.find((b) => path.basename(b.pathname) === oldName);
+      if (!target) {
+        return NextResponse.json({ error: "File not found." }, { status: 404 });
+      }
+      const content = await fetch(target.url).then((r) => r.arrayBuffer());
+      await put(`mockups/${slug}/${Date.now()}-${newName}`, content, {
+        access: "public",
+      });
+      await del(target.url);
+    } else {
+      const fromPath = path.join(projectsRoot(), slug, oldName);
+      const toPath = path.join(projectsRoot(), slug, newName);
+      if (!fs.existsSync(fromPath)) {
+        return NextResponse.json({ error: "File not found." }, { status: 404 });
+      }
+      fs.renameSync(fromPath, toPath);
+    }
+    await refreshFeaturedProjectCover(slug);
+    const currentProject = await getFeaturedProjectBySlug(slug);
+    if (currentProject && oldName === path.basename(currentProject.coverUrl)) {
+      await refreshFeaturedProjectCover(slug);
+    }
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath("/mockups");
+    revalidatePath(`/projects/${slug}`);
+    return NextResponse.json({ ok: true });
+  }
+
+  if (body.action === "update_project") {
+    const title = String(body.title || "").trim();
+    const description = String(body.description || "").trim();
+    if (!title && !description) {
+      return NextResponse.json(
+        { error: "Title or description is required." },
+        { status: 400 }
+      );
+    }
+
+    const existing = await getFeaturedProjectBySlug(slug);
+    if (!existing) {
+      const canUseBlob = Boolean(process.env.BLOB_READ_WRITE_TOKEN);
+      let coverUrl = "";
+      if (canUseBlob) {
+        const result = await list({ prefix: `mockups/${slug}/` });
+        coverUrl = result.blobs[0]?.url ?? "";
+      } else {
+        const localDir = path.join(projectsRoot(), slug);
+        if (fs.existsSync(localDir)) {
+          const localFiles = fs.readdirSync(localDir);
+          coverUrl = localFiles[0] ? `/mockups/${slug}/${localFiles[0]}` : "";
+        }
+      }
+      if (!coverUrl) {
+        return NextResponse.json(
+          { error: "Project media not found for this slug." },
+          { status: 404 }
+        );
+      }
+
+      await upsertFeaturedProject({
+        slug,
+        title: title || slug,
+        description: description || "Mobile app project showcase.",
+        coverUrl,
+      });
+      revalidatePath("/");
+      revalidatePath("/admin");
+      revalidatePath(`/projects/${slug}`);
+      return NextResponse.json({ ok: true });
+    }
+
+    await upsertFeaturedProject({
+      slug: existing.slug,
+      title: title || existing.title,
+      description: description || existing.description,
+      coverUrl: existing.coverUrl,
+      updatedAt: existing.updatedAt,
+      order: existing.order,
+    });
+    revalidatePath("/");
+    revalidatePath("/admin");
+    revalidatePath(`/projects/${slug}`);
+    return NextResponse.json({ ok: true });
+  }
+
+  return NextResponse.json({ error: "Unsupported action." }, { status: 400 });
 }
 

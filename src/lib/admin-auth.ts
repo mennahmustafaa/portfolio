@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { timingSafeEqual } from "node:crypto";
 
 export const ADMIN_COOKIE = "admin_auth";
 
@@ -9,7 +10,11 @@ export function getAdminPassword() {
 export function isValidAdminPassword(password: string) {
   if (!password) return false;
   const expected = getAdminPassword();
-  return password === expected || password === "admin123" || password === "n123";
+
+  const given = Buffer.from(password);
+  const stored = Buffer.from(expected);
+  if (given.length !== stored.length) return false;
+  return timingSafeEqual(given, stored);
 }
 
 export function isAdminAuthenticated() {

@@ -4,12 +4,14 @@ import { ArrowRight, Wrench } from "lucide-react";
 
 import { Navbar } from "@/components/navbar";
 import { Reveal } from "@/components/reveal";
-import { getFeaturedProjects } from "@/lib/featured-projects";
+import { getFeaturedProjectsForDisplay } from "@/lib/featured-projects";
 import { getSiteContent } from "@/lib/site-content";
+
+export const dynamic = "force-dynamic";
 
 export default async function Home() {
   const content = getSiteContent();
-  const featuredProjects = await getFeaturedProjects();
+  const featuredProjects = await getFeaturedProjectsForDisplay();
   const skills = content.skills;
   const offerings = content.offerings;
 
@@ -63,12 +65,12 @@ export default async function Home() {
 
               <Reveal delay={0.15}>
                 <div className="flex flex-col gap-3 sm:flex-row">
-                  <Link
-                    href="/mockups"
+                  <a
+                    href="#projects"
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-full bg-white px-6 text-sm font-semibold text-black transition hover:bg-white/90"
                   >
                     View Projects <ArrowRight className="h-4 w-4" />
-                  </Link>
+                  </a>
                   <a
                     href="#contact"
                     className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-white/15 bg-white/[0.02] px-6 text-sm font-semibold text-white transition hover:bg-white/5"
@@ -103,7 +105,10 @@ export default async function Home() {
               {featuredProjects.length ? (
                 featuredProjects.map((project, idx) => (
                   <Reveal key={project.slug} delay={0.03 * idx}>
-                    <article className="group hover-lift rounded-2xl border border-white/10 bg-black/20 p-3 sm:p-4">
+                    <Link
+                      href={`/projects/${project.slug}`}
+                      className="group hover-lift block rounded-2xl border border-white/10 bg-black/20 p-3 sm:p-4"
+                    >
                       <div className="grid items-center gap-4 sm:grid-cols-[110px_1fr_auto]">
                         <div className="relative aspect-[4/3] overflow-hidden rounded-xl border border-white/10 bg-black/40">
                           <Image
@@ -126,7 +131,7 @@ export default async function Home() {
                           <ArrowRight className="h-4 w-4" />
                         </div>
                       </div>
-                    </article>
+                    </Link>
                   </Reveal>
                 ))
               ) : (
